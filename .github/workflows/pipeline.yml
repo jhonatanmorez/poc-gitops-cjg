@@ -1,15 +1,27 @@
-name: GitOps Demo
+name: GitOps Enterprise
 
 on:
   pull_request:
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   deploy:
     runs-on: self-hosted
 
+    environment: production
+
     steps:
 
     - uses: actions/checkout@v3
+
+    - name: Configure AWS Credentials (OIDC)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::005104643423:role/GitHubActionsRole
+        aws-region: us-west-2
 
     - name: Terraform Init
       run: terraform init
