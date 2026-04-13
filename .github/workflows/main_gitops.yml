@@ -141,7 +141,7 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=./ansible/ansible.cfg
           ansible-playbook gitops/ansible/playbook.yml \
-            -i gitops/ansible/inventory.yml \
+            -i gitops/ansible/aws_ec2.yml \
             --private-key ../../private_key.pem
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
