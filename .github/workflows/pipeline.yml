@@ -39,16 +39,37 @@ jobs:
         cp gitops/terraform/tf.txt . || echo "tf.txt no existe en terraform/"
         python3 gitops/scripts/generate_rfc.py
 
+
     - name: Send RFC to Teams
-      env:
-        WEBHOOK_TEAMS: ${{ secrets.WEBHOOK_TEAMS }}
       run: |
-        RFC_TEXT=$(cat RFC.md)
-        JSON_PAYLOAD=$(jq -n --arg msg "$RFC_TEXT" '{text: $msg}')
-        
-        curl -H "Content-Type: application/json" \
-             -d "$JSON_PAYLOAD" \
-             "${{ secrets.WEBHOOK_TEAMS }}"
+        RFC_TEXT=$(cat RFC.md)    
+        # Construimos el JSON con el formato AdaptiveCard que pide el error
+        JSON_PAYLOAD=$(jq -n --arg msg "$RFC_TEXT" '{
+          "type": "message",
+          "attachments": [
+            {
+              "contentType": "application/vnd.microsoft.card.adaptive",
+              "content": {
+                "type": "AdaptiveCard",
+                "body": [
+                {
+                  "type": "TextBlock",
+                  "text": $msg,
+                  "wrap": true
+                }
+            ],
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "version": "1.4"
+                  }
+                }
+              ]
+            }')
+            
+            curl -H "Content-Type: application/json" \
+                -d "$JSON_PAYLOAD" \
+                "$WEBHOOK_TEAMS"
+          env:
+            WEBHOOK_TEAMS: ${{ secrets.TWEBHOOK_TEAMS }}
 
     - name: Show RFC
       run: cat RFC.md
@@ -68,4 +89,4 @@ jobs:
         -i ansible/inventory.yml \
         --private-key private_key.pem
       env:
-        ANSIBLE_HOST_KEY_CHECKING: "False"
+         ANSIBLE_HOST_KEY_CHECKING: "False"
