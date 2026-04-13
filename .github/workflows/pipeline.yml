@@ -29,7 +29,7 @@ jobs:
     - name: Terraform Plan
       run: |
         terraform plan -out=tfplan
-        terraform show tfplan > tf.txt
+        terraform show -no-color tfplan > tf.txt
       working-directory: gitops/terraform
 
     - name: Generate RFC (IA)
