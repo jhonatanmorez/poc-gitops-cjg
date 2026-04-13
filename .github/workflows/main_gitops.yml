@@ -3,7 +3,7 @@ name: "Enterprise GitOps Flow"
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch: # Permite ejecución manual con opciones
+  workflow_dispatch:
     inputs:
       run_ansible:
         description: '¿Ejecutar Ansible después de Terraform?'
@@ -11,8 +11,8 @@ on:
         default: true
 
 permissions:
-  id-token: write   # Obligatorio para OIDC
-  contents: read    # Solo lectura para el repositorio
+  id-token: write
+  contents: read
 
 jobs:
   plan_and_rfc:
@@ -57,9 +57,14 @@ jobs:
           name: RFC-Word
           path: RFC_Cambio_Infra.docx
 
-      - name: Notify Teams (Adaptive Card)
+      - name: Notify Teams (Gerencial)
         run: |
-          # Payload para el nuevo formato de Workflows en Teams
+          # Extraemos una vista previa del resumen generado por la IA para el gerente
+          RFC_PREVIEW=$(grep -A 2 "## 📋 Resumen" RFC.md | tail -n 1 | sed 's/"/\\"/g' | cut -c1-150)
+          if [ -z "$RFC_PREVIEW" ]; then RFC_PREVIEW="Revisar el reporte adjunto para más detalles."; fi
+
+          APPROVAL_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/approvals/production"
+          
           cat <<EOF > teams_payload.json
           {
             "type": "message",
@@ -71,24 +76,42 @@ jobs:
                   "body": [
                     {
                       "type": "TextBlock",
-                      "size": "Medium",
+                      "size": "Large",
                       "weight": "Bolder",
-                      "text": "🚀 RFC Generado"
+                      "text": "📑 Aprobación de Cambio Requerida",
+                      "color": "Accent"
+                    },
+                    {
+                      "type": "FactSet",
+                      "facts": [
+                        { "title": "Proyecto:", "value": "${{ github.repository }}" },
+                        { "title": "Entorno:", "value": "Producción 🚀" },
+                        { "title": "Autor:", "value": "${{ github.actor }}" }
+                      ]
                     },
                     {
                       "type": "TextBlock",
-                      "text": "Se ha generado un nuevo documento de cambio. Por favor revise los artefactos en GitHub para aprobar el despliegue.",
+                      "text": "📋 **Resumen del Cambio (IA):**",
                       "wrap": true
                     },
                     {
-                      "type": "ActionSet",
-                      "actions": [
-                        {
-                          "type": "Action.OpenUrl",
-                          "title": "Ver Ejecución en GitHub",
-                          "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                        }
-                      ]
+                      "type": "TextBlock",
+                      "text": "$RFC_PREVIEW...",
+                      "wrap": true,
+                      "isSubtle": true,
+                      "italic": true
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "type": "Action.OpenUrl",
+                      "title": "✅ Aprobar Despliegue",
+                      "url": "$APPROVAL_URL"
+                    },
+                    {
+                      "type": "Action.OpenUrl",
+                      "title": "🔍 Ver Detalles en GitHub",
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                     }
                   ],
                   "\$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -104,7 +127,7 @@ jobs:
     name: "Despliegue y Configuración"
     needs: plan_and_rfc
     runs-on: self-hosted
-    environment: production # ACTIVA APROBACIÓN MANUAL
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -136,13 +159,15 @@ jobs:
         run: | 
           ansible-galaxy collection install amazon.aws
           pip3 install boto3 botocore --user
+
       - name: Ansible Deploy (Opcional)
         if: ${{ github.event.inputs.run_ansible == 'true' || github.event_name == 'push' }}
         run: |
-          export ANSIBLE_CONFIG=./ansible/ansible.cfg
+          export ANSIBLE_CONFIG=./gitops/ansible/ansible.cfg
           ansible-playbook gitops/ansible/playbook.yml \
             -i gitops/ansible/aws_ec2.yml \
-            --private-key ./private_key.pem
+            --private-key ./private_key.pem \
+            -e "nginx=true"
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           AWS_ACCESS_KEY_ID: ${{ steps.aws-creds.outputs.aws-access-key-id }}

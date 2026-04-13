@@ -41,6 +41,7 @@ resource "aws_instance" "web" {
     Role        = "web"
     Owner       = "demo1"
     Environment = "dev"
+    nginx       = "true"
   }
 }
 
