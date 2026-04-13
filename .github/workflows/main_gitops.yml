@@ -139,6 +139,7 @@ jobs:
       - name: Ansible Deploy (Opcional)
         if: ${{ github.event.inputs.run_ansible == 'true' || github.event_name == 'push' }}
         run: |
+          export ANSIBLE_CONFIG=./ansible/ansible.cfg
           ansible-playbook gitops/ansible/playbook.yml \
             -i gitops/ansible/inventory.yml \
             --private-key private_key.pem
