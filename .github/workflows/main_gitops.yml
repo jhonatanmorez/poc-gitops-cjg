@@ -17,6 +17,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::005104643423:role/GitHubActionsRole
+          aws-region: us-east-1
+
       - name: Terraform Plan
         run: |
           terraform init
@@ -63,6 +69,12 @@ jobs:
     environment: production # ESTO ACTIVA LA APROBACIÓN MANUAL EN GITHUB
     steps:
       - uses: actions/checkout@v3
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::005104643423:role/GitHubActionsRole
+          aws-region: us-east-1
 
       - name: Terraform Apply
         run: |
