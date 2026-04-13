@@ -26,18 +26,18 @@ jobs:
 
     - name: Terraform Init
       run: terraform init
-      working-directory: terraform
+      working-directory: gitops/terraform
 
     - name: Terraform Plan
       run: |
         terraform plan -out=tfplan
         terraform show tfplan > tf.txt
-      working-directory: terraform
+      working-directory: gitops/terraform
 
     - name: Generate RFC (IA)
       run: |
         cp terraform/tf.txt .
-        python3 scripts/generate_rfc.py
+        python3 gitops/scripts/generate_rfc.py
 
     - name: Send RFC to Teams
       env:
@@ -52,9 +52,9 @@ jobs:
 
     - name: Terraform Apply
       run: terraform apply -auto-approve
-      working-directory: terraform
+      working-directory: gitops/terraform
 
     - name: Ansible Deploy
       run: |
-        ansible-playbook ansible/playbook.yml \
+        ansible-playbook gitops/ansible/playbook.yml \
         -i ansible/inventory.yml
