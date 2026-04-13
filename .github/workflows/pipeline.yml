@@ -1,7 +1,9 @@
 name: GitOps PoC
 
 on:
-  pull_request:
+  #pull_request:
+  push:
+    branches: [ "**"]
 
 permissions:
   id-token: write
@@ -38,10 +40,12 @@ jobs:
         python3 scripts/generate_rfc.py
 
     - name: Send RFC to Teams
+      env:
+        WEBHOOK_TEAMS: ${{ secrets.WEBHOOK_TEAMS }}
       run: |
         curl -H "Content-Type: application/json" \
-        -d "{\"text\":\"$(cat RFC.md)\"}" \
-        WEBHOOK_TEAMS
+        -d "{\"text\":\"$(cat RFC.md | sed ':a;N;$!ba;s/\n/\\n/g')\"}" \
+        "$WEBHOOK_TEAMS"
 
     - name: Show RFC
       run: cat RFC.md
