@@ -1,9 +1,8 @@
 name: GitOps PoC
 
 on:
-  #pull_request:
   push:
-    branches: [ "**"]
+    branches: [ "**" ]
 
 permissions:
   id-token: write
@@ -15,7 +14,6 @@ jobs:
     environment: production
 
     steps:
-
     - uses: actions/checkout@v3
 
     - name: Configure AWS (OIDC)
@@ -36,14 +34,19 @@ jobs:
 
     - name: Generate RFC (IA)
       run: |
+        # Copiamos el plan a la raíz para que el script de python lo encuentre
         cp gitops/terraform/tf.txt . || echo "tf.txt no existe en terraform/"
         python3 gitops/scripts/generate_rfc.py
 
-
     - name: Send RFC to Teams
+      shell: bash
       run: |
-        RFC_TEXT=$(cat RFC.md)    
-        # Construimos el JSON con el formato AdaptiveCard que pide el error
+        # Validar si existe el archivo antes de leerlo
+        if [ ! -f RFC.md ]; then echo "RFC.md no encontrado"; exit 1; fi
+        
+        RFC_TEXT=$(cat RFC.md)
+        
+        # Construimos el JSON AdaptiveCard
         JSON_PAYLOAD=$(jq -n --arg msg "$RFC_TEXT" '{
           "type": "message",
           "attachments": [
@@ -52,30 +55,30 @@ jobs:
               "content": {
                 "type": "AdaptiveCard",
                 "body": [
-                {
-                  "type": "TextBlock",
-                  "text": $msg,
-                  "wrap": true
-                }
-            ],
-                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                    "version": "1.4"
+                  {
+                    "type": "TextBlock",
+                    "text": $msg,
+                    "wrap": true
                   }
-                }
-              ]
-            }')
-            
-            curl -H "Content-Type: application/json" \
-                -d "$JSON_PAYLOAD" \
-                "$WEBHOOK_TEAMS"
-          env:
-            WEBHOOK_TEAMS: ${{ secrets.TWEBHOOK_TEAMS }}
-
-    - name: Show RFC
-      run: cat RFC.md
+                ],
+                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                "version": "1.4"
+              }
+            }
+          ]
+        }')
+        
+        # Ejecutar el curl usando la variable de entorno
+        curl -H "Content-Type: application/json" \
+             -d "$JSON_PAYLOAD" \
+             "$WEBHOOK_TEAMS"
+      env:
+        # CORRECCIÓN: Verifica que el nombre del secreto en GitHub sea exactamente este
+        WEBHOOK_TEAMS: ${{ secrets.WEBHOOK_TEAMS }}
 
     - name: Setup SSH key
       run: |
+        # Creamos la llave en la raíz para que Ansible la vea fácilmente
         echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
         chmod 400 private_key.pem
 
@@ -85,8 +88,11 @@ jobs:
 
     - name: Ansible Deploy
       run: |
+        # Ajustamos las rutas: el inventario se genera en gitops/ansible/
+        # La llave está en la raíz (../ desde la carpeta del inventario si fuera necesario, 
+        # pero aquí lo llamamos desde la raíz del repo)
         ansible-playbook gitops/ansible/playbook.yml \
-        -i ansible/inventory.yml \
-        --private-key private_key.pem
+          -i gitops/ansible/inventory.yml \
+          --private-key private_key.pem
       env:
-         ANSIBLE_HOST_KEY_CHECKING: "False"
+        ANSIBLE_HOST_KEY_CHECKING: "False"
