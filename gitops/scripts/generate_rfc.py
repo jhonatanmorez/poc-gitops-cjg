@@ -11,28 +11,26 @@ def generate_rfc():
     with open(input_file, "r") as f:
         content = f.read()
     
-    # BUSQUEDA QUIRÚRGICA: 
-    # Extraemos solo las líneas que realmente nos dicen qué se va a crear.
+    # Limpieza del plan: Capturamos lo relevante para no saturar el contexto de la IA
     important_lines = []
     for line in content.split('\n'):
-        if "resource" in line or "will be created" in line or "+" in line:
-            if "known after apply" not in line: # Quitamos el ruido de IDs desconocidos
-                important_lines.append(line.strip())
+        if "+" in line and ":" in line: # Cambios que se añaden
+            important_lines.append(line.strip())
     
-    clean_plan = "\n".join(important_lines)[:1000]
+    clean_plan = "\n".join(important_lines)[:1500]
 
-    # PROMPT DE ROL DE INGENIERO:
-    # Le damos un ejemplo de CÓMO queremos que responda (Few-Shot Prompting)
+    # PROMPT ESTRATÉGICO PARA GERENCIA
     prompt = f"""<|system|>
-Eres un bot que resume planes de Terraform en español. Sé breve y directo. 
-No expliques conceptos técnicos. No digas "Este RFC describe...".
-Ejemplo de respuesta:
-- Se creará una instancia EC2 tipo t3.micro.
-- Se usará la AMI ami-04680790a315cd58d.
-- Etiquetas: Name=web01, Env=dev.
+Eres un Ingeniero de Infraestructura Senior. Tu tarea es redactar un "Request for Change" (RFC) profesional en ESPAÑOL basado en un plan de Terraform.
+Usa un tono formal. Estructura la información en una tabla comparativa y secciones de riesgo.
 <|user|>
-Resume estos cambios de Terraform:
+Analiza este plan de Terraform y genera el RFC:
 {clean_plan}
+
+REGLAS DE FORMATO:
+1. Título: # 📑 RFC: Despliegue de Infraestructura PoC
+2. Incluye una Tabla con: | Recurso | Acción | Detalle Técnico |
+3. Incluye una sección de "Impacto y Riesgo" breve.
 <|assistant|>"""
 
     payload = {
@@ -40,22 +38,23 @@ Resume estos cambios de Terraform:
         "prompt": prompt,
         "stream": False,
         "options": {
-            "temperature": 0.1,
-            "num_predict": 200,
-            "stop": ["<|user|>", "<|system|>"] # Evitamos que la IA siga hablando sola
+            "temperature": 0.2, # Baja temperatura para mayor consistencia
+            "num_predict": 500,
+            "top_p": 0.9
         }
     }
 
     try:
-        response = requests.post("http://localhost:11434/api/generate", json=payload, timeout=120)
-        result = response.json().get("response", "Error al procesar")
+        response = requests.post("http://localhost:11434/api/generate", json=payload, timeout=180)
+        result = response.json().get("response", "Error al procesar el resumen.")
         
-        with open(output_file, "w") as f:
-            f.write("# 🚀 Resumen de Cambios de Infraestructura\n\n")
+        with open(output_file, "w", encoding="utf-8") as f:
+            # No agregamos el título aquí porque ya lo pedimos en el prompt para que sea parte del estilo
             f.write(result.strip())
+            
     except Exception as e:
         with open(output_file, "w") as f:
-            f.write(f"Error: {str(e)}")
+            f.write(f"# ❌ Error en Generación de RFC\n\nDetalle: {str(e)}")
 
 if __name__ == "__main__":
     generate_rfc()

@@ -49,7 +49,7 @@ jobs:
       - name: Convert RFC to Word
         run: |
           sudo apt-get update && sudo apt-get install -y pandoc
-          pandoc RFC.md -o RFC_Cambio_Infra.docx
+          pandoc RFC.md -o RFC_Cambio_Infra.docx --metadata title="Reporte de Cambio de Infraestructura"
 
       - name: Upload Word Artifact
         uses: actions/upload-artifact@v4
@@ -136,7 +136,7 @@ jobs:
         if: ${{ github.event.inputs.run_ansible == 'true' || github.event_name == 'push' }}
         run: |
           ansible-playbook gitops/ansible/playbook.yml \
-            -i gitops/ansible/aws_ec2.yml \
+            -i gitops/ansible/inventory.yml \
             --private-key private_key.pem
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
