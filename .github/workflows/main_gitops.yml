@@ -9,7 +9,9 @@ on:
         description: '¿Ejecutar Ansible después de Terraform?'
         type: boolean
         default: true
-
+permissions:
+  id-token: write   # Obligatorio para OIDC
+  contents: read   # Solo lectura para el repositorio, suficiente para checkout y artefactos
 jobs:
   plan_and_rfc:
     name: "Plan e IA RFC"
