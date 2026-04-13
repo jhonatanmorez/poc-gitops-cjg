@@ -3,11 +3,13 @@ provider "aws" {
 }
 
 resource "aws_instance" "web" {
-  ami           = "ami-0c02fb55956c7d316"
+  ami           = "ami-04680790a315cd58d"
   instance_type = "t3.micro"
 
   tags = {
     Name = "web01"
     Role = "web"
+    Owner = "demo"
+    Environment = "dev"
   }
 }

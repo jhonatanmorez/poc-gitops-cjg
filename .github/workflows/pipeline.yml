@@ -1,4 +1,4 @@
-name: GitOps Enterprise
+name: GitOps PoC
 
 on:
   pull_request:
@@ -10,18 +10,17 @@ permissions:
 jobs:
   deploy:
     runs-on: self-hosted
-
     environment: production
 
     steps:
 
     - uses: actions/checkout@v3
 
-    - name: Configure AWS Credentials (OIDC)
+    - name: Configure AWS (OIDC)
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: arn:aws:iam::005104643423:role/GitHubActionsRole
-        aws-region: us-west-2
+        aws-region: us-east-1
 
     - name: Terraform Init
       run: terraform init
@@ -33,19 +32,25 @@ jobs:
         terraform show tfplan > tf.txt
       working-directory: terraform
 
-    - name: RFC IA
+    - name: Generate RFC (IA)
       run: |
         cp terraform/tf.txt .
         python3 scripts/generate_rfc.py
 
-    - name: Mostrar RFC
+    - name: Send RFC to Teams
+      run: |
+        curl -H "Content-Type: application/json" \
+        -d "{\"text\":\"$(cat RFC.md)\"}" \
+        WEBHOOK_TEAMS
+
+    - name: Show RFC
       run: cat RFC.md
 
     - name: Terraform Apply
       run: terraform apply -auto-approve
       working-directory: terraform
 
-    - name: Ansible
+    - name: Ansible Deploy
       run: |
         ansible-playbook ansible/playbook.yml \
         -i ansible/inventory.yml
