@@ -132,6 +132,10 @@ jobs:
           AWS_SESSION_TOKEN: ${{ steps.aws-creds.outputs.aws-session-token }}
           AWS_REGION: us-east-1
 
+      - name: Instalar Ansible AWS Collection
+        run: | 
+          ansible-galaxy collection install amazon.aws
+          pip3 install boto3 botocore --user
       - name: Ansible Deploy (Opcional)
         if: ${{ github.event.inputs.run_ansible == 'true' || github.event_name == 'push' }}
         run: |
