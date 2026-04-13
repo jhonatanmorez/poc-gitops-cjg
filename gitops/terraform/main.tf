@@ -44,15 +44,3 @@ resource "aws_instance" "web" {
   }
 }
 
-resource "local_file" "ansible_inventory" {
-  content  = <<EOT
-all:
-  hosts:
-    webserver:
-      ansible_host: ${aws_instance.web.public_ip}
-      ansible_user: ubuntu
-      # 4. Pasar la ruta de la llave a Ansible
-      ansible_ssh_private_key_file: ../private_key.pem
-EOT
-  filename = "${path.module}/../ansible/inventory.yml"
-}
