@@ -9,7 +9,7 @@ resource "aws_instance" "web" {
   tags = {
     Name = "web01"
     Role = "web"
-    Owner = "demo"
+    Owner = "demo1"
     Environment = "dev"
   }
 }
