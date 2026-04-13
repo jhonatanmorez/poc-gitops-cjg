@@ -1,0 +1,74 @@
+name: "Enterprise GitOps Flow"
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # Permite ejecución manual con opciones
+    inputs:
+      run_ansible:
+        description: '¿Ejecutar Ansible después de Terraform?'
+        type: boolean
+        default: true
+
+jobs:
+  plan_and_rfc:
+    name: "Plan e IA RFC"
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Terraform Plan
+        run: |
+          terraform init
+          terraform plan -out=tfplan
+          terraform show -no-color tfplan > tf.txt
+        working-directory: gitops/terraform
+
+      - name: IA Generate RFC
+        run: |
+          cp gitops/terraform/tf.txt .
+          python3 gitops/scripts/generate_rfc.py
+
+      # --- CONVERSIÓN A WORD ---
+      - name: Convert RFC to Word
+        run: |
+          # Instalamos pandoc en el runner
+          sudo apt-get update && sudo apt-get install -y pandoc
+          pandoc RFC.md -o RFC_Cambio_Infra.docx
+
+      - name: Upload Word Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RFC-Word
+          path: RFC_Cambio_Infra.docx
+
+      - name: Notify Teams (Summary & Link)
+        run: |
+          # Enviamos a Teams avisando que el documento Word está listo en los artefactos
+          # Nota: Teams Webhook no permite adjuntar archivos directamente, se envía el link de descarga.
+          curl -H "Content-Type: application/json" \
+          -d "{\"text\": \"🚀 RFC Generado. Descargue el archivo Word desde los artefactos de GitHub: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+          ${{ secrets.WEBHOOK_TEAMS }}
+
+  apply_and_config:
+    name: "Despliegue y Configuración"
+    needs: plan_and_rfc
+    runs-on: self-hosted
+    environment: production # ESTO ACTIVA LA APROBACIÓN MANUAL EN GITHUB
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Terraform Apply
+        run: |
+          terraform init
+          terraform apply -auto-approve
+        working-directory: gitops/terraform
+
+      - name: Ansible Deploy (Opcional)
+        if: ${{ github.event.inputs.run_ansible == 'true' || github.event_name == 'push' }}
+        run: |
+          ansible-playbook gitops/ansible/playbook.yml \
+            -i gitops/ansible/aws_ec2.yml \
+            --private-key private_key.pem
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"

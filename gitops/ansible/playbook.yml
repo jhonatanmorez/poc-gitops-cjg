@@ -1,7 +1,29 @@
-- hosts: all
+- name: "Configuracion base y aplicacion nginx"
+  hosts: all
+  gather_facts: no
   become: yes
+
   tasks:
-    - name: install nginx
-      apt:
-        name: nginx
-        state: present
+  - name: "Esperar a que SSH quede disponible"
+    wait_for_connection:
+      timeout: 300
+      delay: 10
+      msg: "El servidor no está disponible después de 5 minutos, abortando la ejecución"
+
+  - name: "Recopilar información del host"
+    setup:
+
+
+  - name: "Instalar nginx"
+    apt:
+      name: nginx
+      state: present
+      update_cache: yes
+    when: nginx | bool
+
+  - name: "Iniciar nginx"
+    service:
+      name: nginx
+      state: started
+      enabled: yes
+    when: nginx | bool

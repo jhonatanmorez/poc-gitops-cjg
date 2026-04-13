@@ -1,9 +1,16 @@
 plugin: aws_ec2
 regions:
 - us-east-1
-
 filters:
-  tag:Role: web
+  # Solo traer instancias que estén encendidas
+  instance-state-name: [ 'running' ]
+  # Filtrar por el tag que definiste en Terraform
+  tag:Role: "web"
+
+hostnames:
+# Usar la IP pública para conectar (o la privada si estás en VPN)
+- ip-address
 
 compose:
-  ansible_host: public_ip_address
+  # Definir el usuario por defecto según la imagen
+  ansible_user: "ubuntu"
