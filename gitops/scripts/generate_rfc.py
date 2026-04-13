@@ -7,91 +7,88 @@ def generate_rfc():
     ansible_file = "gitops/ansible/playbook.yml"
     output_file = "RFC.md"
 
-    # --- 1. CAPTURA DE DATOS ---
-    tf_summary = "Sin cambios detectados."
+    # --- 1. PREPARACIÓN DE DATOS (Limpieza extrema para TinyLlama) ---
+    tf_summary = "Sin cambios (Infraestructura Estable)."
     if os.path.exists(tf_file):
         with open(tf_file, "r") as f:
             lines = f.readlines()
-            changes = [l.strip() for l in lines if any(x in l for x in ["+", "~", "-"]) and "resource" in l]
+            # Capturamos solo la acción y el recurso (ej: + aws_instance.web)
+            changes = [l.strip() for l in lines if ("+" in l or "~" in l or "-" in l) and "resource" in l]
             if changes:
-                tf_summary = "\n".join(changes)
+                tf_summary = " | ".join(changes[:5]) # Limitamos a 5 cambios para no saturar la memoria del modelo
 
-    ansible_summary = "No se detectaron tareas de configuración."
+    ansible_summary = "Configuración base."
     if os.path.exists(ansible_file):
         try:
             with open(ansible_file, "r") as f:
                 playbook = yaml.safe_load(f)
-                summary_tasks = []
-                for play in playbook:
-                    t_names = [t.get('name', 'Tarea técnica') for t in play.get('tasks', [])]
-                    summary_tasks.append(f"Servicio: {play.get('name')} | Tareas: {', '.join(t_names)}")
-                ansible_summary = "\n".join(summary_tasks)
+                tasks = [t.get('name', 'Tarea') for play in playbook for t in play.get('tasks', [])]
+                ansible_summary = " -> ".join(tasks[:5])
         except:
-            ansible_summary = "Configuración estándar de servidor."
+            ansible_summary = "Instalación de servicios y hardening."
 
-    # --- 2. PROMPT OPTIMIZADO PARA MODELOS PEQUEÑOS ---
-    # Eliminamos ambigüedades para que la IA no repita el prompt
+    # --- 2. EL PROMPT MAESTRO (Optimizado para modelos 1.1B) ---
+    # Usamos un formato de "Completar la frase" que es donde TinyLlama brilla.
     prompt = f"""<|system|>
-Eres un Ingeniero Cloud que redacta Reportes de Cambio (RFC). 
-TU TAREA: Generar un reporte técnico basado en los datos proporcionados.
-REGLA: No repitas las instrucciones. Solo entrega el reporte final en Markdown.
+Eres un Ingeniero Cloud. Escribe un RFC técnico. Sé breve y usa tablas.
 <|user|>
 DATOS TÉCNICOS:
-Terraform: {tf_summary}
-Ansible: {ansible_summary}
+Terraform (Infraestructura): {tf_summary}
+Ansible (Configuración): {ansible_summary}
 
-GENERA EL SIGUIENTE FORMATO:
-1. Título (Deduce un nombre profesional)
-2. Resumen Ejecutivo
-3. Tabla de Cambios (Capa | Componente | Acción | Propósito)
-4. Análisis de Riesgo
-5. Plan de Rollback
-<|assistant|>"""
+TAREA: Escribe el RFC siguiendo este modelo exacto:
+# 📑 RFC: Actualización de Plataforma
+## 📋 Resumen
+Se detallan cambios en recursos AWS y software.
+## 🛠 Tabla de Cambios
+| Capa | Acción | Detalle |
+| :--- | :--- | :--- |
+| Infra | Aplicar | {tf_summary} |
+| Software | Configurar | {ansible_summary} |
+## 🛡 Riesgo
+Bajo. Cambios validados por pipeline.
+<|assistant|>
+# 📑 RFC: Despliegue Automatizado"""
 
     payload = {
         "model": "tinyllama",
         "prompt": prompt,
         "stream": False,
         "options": {
-            "temperature": 0.1, # Menor temperatura = menos errores/alucinaciones
-            "num_predict": 800,
-            "stop": ["<|user|>", "<|system|>", "DATOS TÉCNICOS:"] # Evita que la IA siga escribiendo
+            "temperature": 0.1,  # Casi 0 para que no invente palabras raras
+            "top_p": 0.7,
+            "num_predict": 500,
+            "stop": ["<|user|>", "DATOS TÉCNICOS:"] # Para que no repita tus instrucciones
         }
     }
 
     try:
-        response = requests.post("http://localhost:11434/api/generate", json=payload, timeout=180)
+        response = requests.post("http://localhost:11434/api/generate", json=payload, timeout=120)
         result = response.json().get("response", "").strip()
         
-        # Validación: Si la IA devuelve basura, usamos un fallback profesional
-        if len(result) < 50 or "ESTRUCTURO REQUERIADO" in result:
-             result = generate_fallback_rfc(tf_summary, ansible_summary)
-
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write(result)
-        print(f"✅ RFC generado exitosamente.")
-    except Exception as e:
-        print(f"❌ Error: {e}")
-
-def generate_fallback_rfc(tf, ans):
-    """Función de respaldo por si la IA falla (Seguridad Enterprise)"""
-    return f"""# 📑 RFC: Actualización de Infraestructura y Servicios
+        # Si la IA responde algo muy corto o vacío, usamos el formato profesional de respaldo
+        if len(result) < 50:
+            result = f"""# 📑 RFC: Reporte de Cambio de Infraestructura
 ## 📋 Resumen Ejecutivo
-Se informa la validación de infraestructura y la aplicación de configuraciones de software automatizadas.
+Validación de estado y aplicación de cambios mediante GitOps.
 
 ## 🛠 Tabla Detallada de Cambios
-| Capa | Componente | Acción | Propósito |
+| Capa | Componente | Acción | Descripción |
 | :--- | :--- | :--- | :--- |
-| Infraestructura | Cloud Resources | Validar | {tf} |
-| Configuración | Ansible Playbook | Ejecutar | {ans} |
+| **Infraestructura** | Terraform | Sync | {tf_summary} |
+| **Configuración** | Ansible | Deploy | {ansible_summary} |
 
-## 🛡 Evaluación de Impacto y Riesgo
-- **Impacto:** Bajo. Se aplican configuraciones sobre instancias existentes.
-- **Riesgo:** Mínimo. Proceso idempotente.
+## 🛡 Análisis de Riesgo
+- **Impacto:** Controlado.
+- **Rollback:** Revertir commit en rama principal."""
 
-## 🔄 Procedimiento de Reversión
-1. Ejecutar Terraform Destroy si es necesario.
-2. Restaurar Snapshot de la instancia previa al Playbook."""
+        # Escribimos el Markdown final
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(result)
+        print("✅ RFC Generado profesionalmente.")
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
 
 if __name__ == "__main__":
     generate_rfc()
