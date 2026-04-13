@@ -36,7 +36,7 @@ jobs:
 
     - name: Generate RFC (IA)
       run: |
-        cp gitops/terraform/tf.txt .
+        cp gitops/terraform/tf.txt . || echo "tf.txt no existe en terraform/"
         python3 gitops/scripts/generate_rfc.py
 
     - name: Send RFC to Teams
