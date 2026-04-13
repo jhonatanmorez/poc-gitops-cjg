@@ -48,7 +48,7 @@ jobs:
         
         curl -H "Content-Type: application/json" \
              -d "$JSON_PAYLOAD" \
-             "${{ secrets.TEAMS_WEBHOOK_URL }}"
+             "${{ secrets.WEBHOOK_TEAMS }}"
 
     - name: Show RFC
       run: cat RFC.md
