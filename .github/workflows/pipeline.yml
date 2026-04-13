@@ -43,9 +43,12 @@ jobs:
       env:
         WEBHOOK_TEAMS: ${{ secrets.WEBHOOK_TEAMS }}
       run: |
+        RFC_TEXT=$(cat RFC.md)
+        JSON_PAYLOAD=$(jq -n --arg msg "$RFC_TEXT" '{text: $msg}')
+        
         curl -H "Content-Type: application/json" \
-        -d "{\"text\":\"$(cat RFC.md | sed ':a;N;$!ba;s/\n/\\n/g')\"}" \
-        "$WEBHOOK_TEAMS"
+             -d "$JSON_PAYLOAD" \
+             "${{ secrets.TEAMS_WEBHOOK_URL }}"
 
     - name: Show RFC
       run: cat RFC.md
@@ -62,7 +65,7 @@ jobs:
     - name: Ansible Deploy
       run: |
         ansible-playbook gitops/ansible/playbook.yml \
-        -i ansible/inventory.yml
+        -i ansible/inventory.yml \
         --private-key private_key.pem
       env:
         ANSIBLE_HOST_KEY_CHECKING: "False"
