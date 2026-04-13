@@ -13,3 +13,14 @@ resource "aws_instance" "web" {
     Environment = "dev"
   }
 }
+
+resource "local_file" "ansible_inventory" {
+  content  = <<EOT
+all:
+  hosts:
+    webserver:
+      ansible_host: ${aws_instance.web.public_ip}
+      ansible_user: ubuntu
+EOT
+  filename = "../ansible/inventory.yml"
+}

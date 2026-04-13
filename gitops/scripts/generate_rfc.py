@@ -25,7 +25,7 @@ try:
             "prompt": prompt, 
             "stream": False
         },
-        timeout=60 # TinyLlama debería responder en menos de 1 minuto
+        timeout=180 # TinyLlama debería responder en menos de 1 minuto
     )
     response.raise_for_status()
     rfc_text = response.json().get("response", "No se generó contenido.")
