@@ -50,6 +50,11 @@ jobs:
     - name: Show RFC
       run: cat RFC.md
 
+    - name: Setup SSH key
+      run: |
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
+        chmod 400 private_key.pem
+
     - name: Terraform Apply
       run: terraform apply -auto-approve
       working-directory: gitops/terraform
@@ -58,3 +63,6 @@ jobs:
       run: |
         ansible-playbook gitops/ansible/playbook.yml \
         -i ansible/inventory.yml
+        --private-key private_key.pem
+      env:
+        ANSIBLE_HOST_KEY_CHECKING: "False"

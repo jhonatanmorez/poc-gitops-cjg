@@ -1,41 +1,79 @@
 import requests
 import os
+import sys
 
-# 1. Verificar el archivo de Terraform
-if not os.path.exists("tf.txt"):
-    with open("RFC.md", "w") as f:
-        f.write("# RFC Error\nNo se encontró el plan de Terraform.")
-    exit(0)
+def generate_rfc():
+    input_file = "tf.txt"
+    output_file = "RFC.md"
 
-tf_content = open("tf.txt").read()
+    # 1. Verificar si existe el plan de Terraform
+    if not os.path.exists(input_file):
+        print(f"Error: No se encontró el archivo {input_file}")
+        with open(output_file, "w") as f:
+            f.write("# RFC Error\nNo se encontró el plan de Terraform para analizar.")
+        return
 
-# 2. Prompt optimizado para un modelo pequeño
-prompt = f"""Generate a professional RFC (Request for Comments) based on this Terraform plan:
-{tf_content}
+    # 2. Leer y filtrar el plan (Limpieza de ruido para la IA)
+    with open(input_file, "r") as f:
+        lines = f.readlines()
+    
+    # Filtramos solo cambios relevantes para no saturar la CPU
+    filtered_changes = [line.strip() for line in lines if any(x in line for x in ["+", "-", "~", "resource", "instance_type"])]
+    clean_plan = "\n".join(filtered_changes)[:1200] 
 
-Include sections: Description, Impact, Risks, and Rollback.
-Respond only with the RFC content in Markdown format."""
+    # 3. Prompt optimizado para respuesta en ESPAÑOL
+    # Usamos instrucciones claras para que el modelo no se confunda
+    prompt = f"""Genera un documento RFC (Request for Comments) breve en español.
+Contexto: Terraform aplicará los siguientes cambios en la infraestructura:
+{clean_plan}
 
-# 3. Petición a Ollama usando tinyllama
-try:
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
-            "model": "tinyllama", 
-            "prompt": prompt, 
-            "stream": False
-        },
-        timeout=180 # TinyLlama debería responder en menos de 1 minuto
-    )
-    response.raise_for_status()
-    rfc_text = response.json().get("response", "No se generó contenido.")
+Instrucciones:
+- Título: Actualización de Infraestructura
+- Secciones: Descripción, Impacto, Riesgos.
+- Idioma: Español.
+- Sé conciso y técnico.
+Respuesta:"""
 
-    # 4. Guardar resultado
-    with open("RFC.md", "w") as f:
-        f.write(rfc_text)
-    print("RFC generado correctamente con TinyLlama.")
+    # 4. Configuración de la petición a Ollama
+    url = "http://localhost:11434/api/generate"
+    payload = {
+        "model": "tinyllama",
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "num_predict": 300,    # Un poco más de margen para el español
+            "temperature": 0.2,    # Baja temperatura para evitar alucinaciones
+            "top_p": 0.9
+        }
+    }
 
-except Exception as e:
-    print(f"Error: {e}")
-    with open("RFC.md", "w") as f:
-        f.write("# RFC (Generación fallida)\nOcurrió un error con la IA local.")
+    print(f"Enviando solicitud a Ollama (TinyLlama) en español...")
+    
+    try:
+        # Timeout de conexión: 10s, Timeout de lectura: 180s (3 min)
+        response = requests.post(url, json=payload, timeout=(10, 180))
+        response.raise_for_status()
+        
+        rfc_content = response.json().get("response", "No se recibió respuesta de la IA.")
+
+        # 5. Escribir el resultado con encabezado en español
+        with open(output_file, "w") as f:
+            f.write("# Solicitud de Comentarios (RFC) - Autogenerado\n")
+            f.write(rfc_content)
+        
+        print(f"RFC generado exitosamente en español en {output_file}")
+
+    except requests.exceptions.Timeout:
+        error_msg = "Error: Tiempo de espera agotado (Timeout)."
+        print(error_msg)
+        with open(output_file, "w") as f:
+            f.write(f"# RFC (Generación fallida)\n{error_msg}")
+            
+    except Exception as e:
+        error_msg = f"Error inesperado: {str(e)}"
+        print(error_msg)
+        with open(output_file, "w") as f:
+            f.write(f"# RFC (Generación fallida)\nOcurrió un error al procesar la solicitud.")
+
+if __name__ == "__main__":
+    generate_rfc()
