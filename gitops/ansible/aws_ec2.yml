@@ -5,7 +5,8 @@ filters:
   # Solo traer instancias que estén encendidas
   instance-state-name: [ 'running' ]
   # Filtrar por el tag que definiste en Terraform
-  tag:Role: "web"
+  ec2_tags:
+    Role: "web"
 
 hostnames:
 # Usar la IP pública para conectar (o la privada si estás en VPN)

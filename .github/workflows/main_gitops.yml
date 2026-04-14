@@ -158,6 +158,7 @@ jobs:
       - name: Instalar Ansible AWS Collection
         run: | 
           ansible-galaxy collection install amazon.aws
+          ansible-galaxy collection install community.aws
           pip3 install boto3 botocore --user
 
       - name: Ansible Deploy (Opcional)

@@ -7,46 +7,48 @@ def generate_rfc():
     ansible_file = "gitops/ansible/playbook.yml"
     output_file = "RFC.md"
 
-    # --- 1. PREPARACIÓN DE DATOS (Limpieza extrema para TinyLlama) ---
-    tf_summary = "Sin cambios (Infraestructura Estable)."
+    # --- 1. PROCESAR TERRAFORM ---
+    tf_summary = "Infraestructura sin cambios (Estado Sincronizado)."
     if os.path.exists(tf_file):
         with open(tf_file, "r") as f:
             lines = f.readlines()
-            # Capturamos solo la acción y el recurso (ej: + aws_instance.web)
             changes = [l.strip() for l in lines if ("+" in l or "~" in l or "-" in l) and "resource" in l]
             if changes:
-                tf_summary = " | ".join(changes[:5]) # Limitamos a 5 cambios para no saturar la memoria del modelo
+                tf_summary = " | ".join(changes[:5])
 
-    ansible_summary = "Configuración base."
+    # --- 2. PROCESAR ANSIBLE ---
+    ansible_summary = "Validación de configuración estándar."
     if os.path.exists(ansible_file):
         try:
             with open(ansible_file, "r") as f:
                 playbook = yaml.safe_load(f)
-                tasks = [t.get('name', 'Tarea') for play in playbook for t in play.get('tasks', [])]
+                tasks = [t.get('name', 'Configuración') for play in playbook for t in play.get('tasks', [])]
                 ansible_summary = " -> ".join(tasks[:5])
         except:
             ansible_summary = "Instalación de servicios y hardening."
 
-    # --- 2. EL PROMPT MAESTRO (Optimizado para modelos 1.1B) ---
-    # Usamos un formato de "Completar la frase" que es donde TinyLlama brilla.
+    # --- 3. PROMPT OPTIMIZADO PARA TINYLLAMA ---
+    # Usamos una estructura rígida para evitar que la IA alucine
     prompt = f"""<|system|>
-Eres un Ingeniero Cloud. Escribe un RFC técnico. Sé breve y usa tablas.
+Eres un Arquitecto de Soluciones Senior. Escribe un RFC técnico profesional.
 <|user|>
 DATOS TÉCNICOS:
-Terraform (Infraestructura): {tf_summary}
-Ansible (Configuración): {ansible_summary}
+Terraform: {tf_summary}
+Ansible: {ansible_summary}
 
-TAREA: Escribe el RFC siguiendo este modelo exacto:
-# 📑 RFC: Actualización de Plataforma
-## 📋 Resumen
-Se detallan cambios en recursos AWS y software.
+TAREA: Escribe el RFC siguiendo este modelo:
+# 📑 RFC: Actualización de Plataforma Cloud
+## 📋 Resumen Ejecutivo
+Cambios programados para mejorar la infraestructura y servicios.
 ## 🛠 Tabla de Cambios
-| Capa | Acción | Detalle |
+| Capa | Acción | Detalle Técnico |
 | :--- | :--- | :--- |
-| Infra | Aplicar | {tf_summary} |
-| Software | Configurar | {ansible_summary} |
+| Infraestructura | Aplicar | {tf_summary} |
+| Configuración | Software | {ansible_summary} |
 ## 🛡 Riesgo
-Bajo. Cambios validados por pipeline.
+Bajo. Validado en pipeline de CI/CD.
+## 🔄 Rollback
+Reversión de commit y ejecución de terraform destroy/apply.
 <|assistant|>
 # 📑 RFC: Despliegue Automatizado"""
 
@@ -54,41 +56,21 @@ Bajo. Cambios validados por pipeline.
         "model": "tinyllama",
         "prompt": prompt,
         "stream": False,
-        "options": {
-            "temperature": 0.1,  # Casi 0 para que no invente palabras raras
-            "top_p": 0.7,
-            "num_predict": 500,
-            "stop": ["<|user|>", "DATOS TÉCNICOS:"] # Para que no repita tus instrucciones
-        }
+        "options": {"temperature": 0.1, "num_predict": 600, "stop": ["<|user|>"]}
     }
 
     try:
         response = requests.post("http://localhost:11434/api/generate", json=payload, timeout=120)
         result = response.json().get("response", "").strip()
         
-        # Si la IA responde algo muy corto o vacío, usamos el formato profesional de respaldo
+        # Fallback profesional si la IA no responde correctamente
         if len(result) < 50:
-            result = f"""# 📑 RFC: Reporte de Cambio de Infraestructura
-## 📋 Resumen Ejecutivo
-Validación de estado y aplicación de cambios mediante GitOps.
+            result = f"# 📑 RFC: Reporte de Cambio\n\n## 📋 Resumen\nCambio automático.\n\n## 🛠 Detalles\n- **Terraform:** {tf_summary}\n- **Ansible:** {ansible_summary}"
 
-## 🛠 Tabla Detallada de Cambios
-| Capa | Componente | Acción | Descripción |
-| :--- | :--- | :--- | :--- |
-| **Infraestructura** | Terraform | Sync | {tf_summary} |
-| **Configuración** | Ansible | Deploy | {ansible_summary} |
-
-## 🛡 Análisis de Riesgo
-- **Impacto:** Controlado.
-- **Rollback:** Revertir commit en rama principal."""
-
-        # Escribimos el Markdown final
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(result)
-        print("✅ RFC Generado profesionalmente.")
-
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
     generate_rfc()
