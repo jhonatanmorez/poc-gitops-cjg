@@ -30,27 +30,36 @@ def generate_rfc():
     # --- 3. PROMPT OPTIMIZADO PARA TINYLLAMA ---
     # Usamos una estructura rígida para evitar que la IA alucine
     prompt = f"""<|system|>
-Eres un Arquitecto de Soluciones Senior. Escribe un RFC técnico profesional.
+Eres un Director de Infraestructura. Tu objetivo es redactar un Reporte de Cambio (RFC) ejecutivo, claro y formal.
+REGLAS:
+1. No muestres código crudo como "+ resource". Tradúcelo a lenguaje humano.
+2. Usa tablas Markdown limpias.
+3. El tono debe ser profesional y de alto nivel.
 <|user|>
-DATOS TÉCNICOS:
-Terraform: {tf_summary}
-Ansible: {ansible_summary}
+DATOS TÉCNICOS PARA PROCESAR:
+- Cambios Terraform: {tf_summary}
+- Tareas Ansible: {ansible_summary}
 
-TAREA: Escribe el RFC siguiendo este modelo:
-# 📑 RFC: Actualización de Plataforma Cloud
-## 📋 Resumen Ejecutivo
-Cambios programados para mejorar la infraestructura y servicios.
-## 🛠 Tabla de Cambios
-| Capa | Acción | Detalle Técnico |
+GENERA EL SIGUIENTE FORMATO:
+# 📑 SOLICITUD DE CAMBIO DE INFRAESTRUCTURA (RFC)
+
+## 📋 1. RESUMEN EJECUTIVO
+Escribe aquí un párrafo que explique que se va a desplegar un nuevo servidor web para mejorar la disponibilidad del servicio.
+
+## 🛠 2. DETALLE DE LA INTERVENCIÓN
+| Dimensión | Acción | Beneficio esperado |
 | :--- | :--- | :--- |
-| Infraestructura | Aplicar | {tf_summary} |
-| Configuración | Software | {ansible_summary} |
-## 🛡 Riesgo
-Bajo. Validado en pipeline de CI/CD.
-## 🔄 Rollback
-Reversión de commit y ejecución de terraform destroy/apply.
-<|assistant|>
-# 📑 RFC: Despliegue Automatizado"""
+| **Infraestructura** | Creación de Nueva Instancia Cloud | Escalabilidad del entorno |
+| **Configuración** | Automatización de Servidor Nginx | Optimización de entrega de contenido |
+
+## 🛡 3. ANÁLISIS DE RIESGO Y CONTROL
+- **Nivel de Riesgo:** Mínimo.
+- **Validación:** El cambio ha sido testeado satisfactoriamente en el pipeline de CI/CD.
+- **Impacto en Usuario:** Sin interrupción de servicio (Zero Downtime).
+
+## 🔄 4. PLAN DE CONTINUIDAD (ROLLBACK)
+En caso de anomalía, se procederá a la reversión automática del commit en Git y restauración del estado anterior mediante Terraform, garantizando la estabilidad operativa.
+<|assistant|>"""
 
     payload = {
         "model": "tinyllama",
