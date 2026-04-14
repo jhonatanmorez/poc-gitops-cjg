@@ -5,13 +5,19 @@ filters:
   # Solo traer instancias que estén encendidas
   instance-state-name: [ 'running' ]
   # Filtrar por el tag que definiste en Terraform
-  ec2_tags:
-    Role: "web"
+  tag:Role:
+  - web
+
+keyed_groups:
+- prefix: tag
+  key: tags
 
 hostnames:
 # Usar la IP pública para conectar (o la privada si estás en VPN)
-- ip-address
+- tag:Name
+- public-ip-address
 
 compose:
   # Definir el usuario por defecto según la imagen
   ansible_user: "ubuntu"
+  ansible_host: public_ip_address
