@@ -166,7 +166,7 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=./gitops/ansible/ansible.cfg
           ansible-playbook gitops/ansible/playbook.yml \
-            -i gitops/ansible/aws_ec2.yml \
+            -i gitops/ansible/inventory/aws_ec2.yml \
             --private-key ./private_key.pem \
             -e "nginx=true"
         env:

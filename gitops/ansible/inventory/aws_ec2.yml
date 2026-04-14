@@ -5,11 +5,12 @@ filters:
   # Solo traer instancias que estén encendidas
   instance-state-name: [ 'running' ]
   # Filtrar por el tag que definiste en Terraform
+  tag:Environment: [ "dev" ]
   tag:Role:
   - web
 
 keyed_groups:
-- prefix: tag
+- prefix: role
   key: tags
 
 hostnames:

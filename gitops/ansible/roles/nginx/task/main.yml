@@ -1,0 +1,12 @@
+- name: "Instalar nginx"
+  apt:
+    name: nginx
+    state: present
+  when: tags.nginx == "true"
+
+- name: "Asegura que nginx esté corriendo"
+  service:
+    name: nginx
+    state: started
+    enabled: true
+  when: tags.nginx == "true"

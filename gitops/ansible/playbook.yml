@@ -3,25 +3,5 @@
   gather_facts: no
   become: yes
 
-  tasks:
-  - name: "Esperar a que SSH quede disponible"
-    wait_for_connection:
-      timeout: 300
-
-  - name: "Recopilar información del host"
-    setup:
-
-
-  - name: "Instalar nginx"
-    apt:
-      name: nginx
-      state: present
-      update_cache: yes
-    when: nginx | default(false) | bool
-
-  - name: "Iniciar nginx"
-    service:
-      name: nginx
-      state: started
-      enabled: yes
-    when: nginx | default(false) | bool
+  roles:
+    - nginx
