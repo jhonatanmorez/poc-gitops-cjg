@@ -1,67 +1,90 @@
 import requests
 import os
-import yaml
 
 def generate_rfc():
-    tf_file = "tf.txt"
-    ansible_file = "gitops/ansible/playbook.yml"
+    # Asegúrate de usar la ruta correcta donde Terraform guarda el txt
+    tf_file = "gitops/terraform/tf.txt" 
     output_file = "RFC.md"
 
-    # --- EXTRACCIÓN Y LIMPIEZA DE DATOS ---
-    tf_data = "Actualización de recursos existentes"
-    if os.path.exists(tf_file):
-        with open(tf_file, "r") as f:
-            lines = f.readlines()
-            # Filtramos solo lo relevante para humanos
-            cambios = [l.strip() for l in lines if "+" in l and "resource" in l]
-            if cambios: tf_data = f"Despliegue de {len(cambios)} nuevos componentes de infraestructura."
+    # 1. Leer y validar el archivo de Terraform
+    if not os.path.exists(tf_file):
+        print(f"Archivo {tf_file} no encontrado.")
+        return
 
-    ansible_data = "Optimización de servicios"
-    if os.path.exists(ansible_file):
-        ansible_data = "Configuración automatizada de servicios web y endurecimiento de seguridad (Hardening)."
+    with open(tf_file, "r") as f:
+        tf_content = f.read()
 
-    # --- PROMPT GERENCIAL (Diseñado para TinyLlama) ---
-    prompt = f"""<|system|>
-Eres un Ingeniero Cloud Senior redactando un RFC para la junta directiva. No uses código técnico (+ o resource). Usa lenguaje de negocios.
+    # 2. Lógica de "Cortocircuito": ¿Hay cambios reales?
+    # Buscamos indicadores de cambios positivos (+), eliminaciones (-) o modificaciones (~)
+    cambios_reales = [line for line in tf_content.split('\n') if "resource" in line and ("+" in line or "-" in line or "~" in line)]
+    
+    # 3. Escenario A: NO HAY CAMBIOS
+    if not cambios_reales or "No changes" in tf_content:
+        print("Infraestructura sincronizada. Generando Reporte de Estado.")
+        result = """# 📑 REPORTE DE ESTADO: INFRAESTRUCTURA SINCRONIZADA
+
+## 📋 1. RESUMEN EJECUTIVO
+Se ha realizado una validación de estado mediante Terraform. La infraestructura actual en la nube coincide exactamente con la configuración definida en el repositorio. No se han detectado desviaciones.
+
+## 🛠 2. DETALLE DE VERIFICACIÓN
+| Componente | Estado | Observación |
+| :--- | :--- | :--- |
+| **Recursos Cloud** | ✅ Sincronizado | Sin cambios pendientes de aplicar. |
+| **Configuración** | ✅ Validado | La plataforma se mantiene estable. |
+
+## 🛡 3. CONCLUSIÓN
+No se requiere intervención ni aprobación de cambios en este ciclo. El sistema se encuentra en estado óptimo."""
+        
+    # 4. Escenario B: HAY CAMBIOS (Llamamos a TinyLlama)
+    else:
+        print(f"Se detectaron {len(cambios_reales)} cambios. Generando RFC con IA...")
+        tf_data = f"Modificación/Creación de {len(cambios_reales)} recursos de infraestructura."
+        ansible_data = "Automatización de servicios y hardening de seguridad."
+
+        prompt = f"""<|system|>
+Eres un Director de Infraestructura. Escribe un RFC formal sin usar código técnico.
 <|user|>
 DATOS:
 Terraform: {tf_data}
 Ansible: {ansible_data}
 
-Escribe el RFC con este formato exacto:
-# 📑 SOLICITUD DE CAMBIO (RFC): DESPLIEGUE DE INFRAESTRUCTURA
+Escribe el RFC exactamente con este formato:
+# 📑 SOLICITUD DE CAMBIO (RFC): ACTUALIZACIÓN DE SISTEMAS
 
 ## 📋 1. RESUMEN EJECUTIVO
-Escribe 2 frases sobre la mejora de disponibilidad y escalabilidad del servicio.
+Despliegue programado para optimizar la capacidad operativa y seguridad del entorno.
 
 ## 🛠 2. DETALLE DE IMPLEMENTACIÓN
 | Capa | Acción Realizada | Beneficio de Negocio |
 | :--- | :--- | :--- |
-| Infraestructura | {tf_data} | Continuidad operativa |
-| Configuración | {ansible_data} | Estandarización de servicios |
+| Infraestructura | {tf_data} | Escalabilidad y Continuidad |
+| Configuración | {ansible_data} | Estándar de Seguridad |
 
 ## 🛡 3. ANÁLISIS DE RIESGO
-- **Nivel:** Mínimo.
-- **Control:** Validado mediante pruebas automatizadas en CI/CD.
+- **Nivel:** Bajo.
+- **Validación:** Validado en entorno de pruebas CI/CD.
 
-## 🔄 4. PLAN DE RETORNO (ROLLBACK)
-Restauración inmediata del estado anterior mediante GitOps en caso de anomalía.
+## 🔄 4. PLAN DE RETORNO
+Reversión inmediata vía GitOps.
 <|assistant|>"""
 
-    payload = {
-        "model": "tinyllama",
-        "prompt": prompt,
-        "stream": False,
-        "options": {"temperature": 0.1, "num_predict": 700}
-    }
+        payload = {
+            "model": "tinyllama",
+            "prompt": prompt,
+            "stream": False,
+            "options": {"temperature": 0.1, "num_predict": 500}
+        }
 
-    try:
-        response = requests.post("http://localhost:11434/api/generate", json=payload, timeout=120)
-        result = response.json().get("response", "").strip()
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write(result)
-    except Exception as e:
-        print(f"Error: {e}")
+        try:
+            response = requests.post("http://localhost:11434/api/generate", json=payload, timeout=60)
+            result = response.json().get("response", "").strip()
+        except:
+            result = "# 📑 RFC (Error de Generación)\nInfraestructura con cambios pendientes. Revisar logs manuales."
+
+    # 5. Guardar el archivo final
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(result)
+    print(f"✅ Documento {output_file} generado.")
 
 if __name__ == "__main__":
     generate_rfc()
