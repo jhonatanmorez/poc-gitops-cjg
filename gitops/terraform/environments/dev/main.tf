@@ -1,27 +1,28 @@
 module "network" {
   source = "../../modules/vpc"
-  vpc_cidr = "10.0.0.0/16"
-  public_cidr = "10.0.1.0/24"
+
+  vpc_cidr     = "10.0.0.0/16"
+  public_cidr  = "10.0.1.0/24"
   private_cidr = "10.0.2.0/24"
-  environment = "dev"
 }
 
 module "compute" {
-  source = "../../../modules/ec2"
-  environment = "dev"
-  owner       = "demo1"
-  ami_id      = "ami-04680790a315cd58d"
-  key_name    = "ec2keypair"
+  source = "../../modules/ec2"
+
+  servidores = {
+    "web-1" = {
+      type   = "t2.micro"
+      subnet = "public"
+      nginx  = true
+    }
+  }
+
+  ami_id            = "ami-0c02fb55956c7d316"
+  key_name          = "mi-key"
   public_subnet_id  = module.network.public_subnet_id
   private_subnet_id = module.network.private_subnet_id
 
-    servidores = {
-    web01 = {
-      instance_type = "t3.micro"
-      role          = "web"
-      nginx         = true
-    }
-  }
+  environment = "dev"
+  owner       = "cjg"
 }
-
 
