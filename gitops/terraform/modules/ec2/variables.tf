@@ -36,3 +36,8 @@ variable "private_subnet_id" {
   description = "ID de la subred privada"
   type        = string
 }   
+
+variable "security_group_id" {
+  description = "ID del grupo de seguridad"
+  type = string
+}
