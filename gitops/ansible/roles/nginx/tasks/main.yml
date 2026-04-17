@@ -1,0 +1,20 @@
+---
+
+- name: "Actualizar el sistema"
+  apt:
+    update_cache: yes
+  when: hostvars[inventory_hostname].tags.nginx == "true"
+
+
+- name: "Instalar nginx"
+  apt:
+    name: nginx
+    state: present
+  when: hostvars[inventory_hostname].tags.nginx == "true"
+
+- name: "Asegura que nginx esté corriendo"
+  service:
+    name: nginx
+    state: started
+    enabled: true
+  when: hostvars[inventory_hostname].tags.nginx == "true"
