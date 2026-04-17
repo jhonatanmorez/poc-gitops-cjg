@@ -20,3 +20,24 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# SSH Keys
+*.pem
+*.ppk
+private_key.*
+
+# IDE
+.vscode/
+.idea/

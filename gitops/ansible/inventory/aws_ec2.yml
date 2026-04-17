@@ -11,7 +11,7 @@ filters:
 
 keyed_groups:
 - prefix: role
-  key: tags
+  key: ec2_tags
 
 hostnames:
 # Usar la IP pública para conectar (o la privada si estás en VPN)
