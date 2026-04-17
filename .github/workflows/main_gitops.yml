@@ -44,18 +44,18 @@ jobs:
       - name: Convert RFC to Word
         run: |
           sudo apt-get update && sudo apt-get install -y pandoc
-          pandoc RFC.md -o RFC_Cambio_Infra.docx --metadata title="Reporte de Cambio de Infraestructura"
+          pandoc gitops/terraform/environments/dev/RFC.md -o gitops/terraform/environments/dev/RFC_Cambio_Infra.docx --metadata title="Reporte de Cambio de Infraestructura"
 
       - name: Upload Word Artifact
         uses: actions/upload-artifact@v4
         with:
           name: RFC-Word
-          path: RFC_Cambio_Infra.docx
+          path: gitops/terraform/environments/dev/RFC_Cambio_Infra.docx
 
       - name: Notify Teams (Gerencial)
         run: |
           # Extraemos una vista previa del resumen generado por la IA para el gerente
-          RFC_PREVIEW=$(grep -A 2 "## 📋 Resumen" RFC.md | tail -n 1 | sed 's/"/\\"/g' | cut -c1-150)
+          RFC_PREVIEW=$(grep -A 2 "## 📋 Resumen" gitops/terraform/environments/dev/RFC.md | tail -n 1 | sed 's/"/\\"/g' | cut -c1-150)
           if [ -z "$RFC_PREVIEW" ]; then RFC_PREVIEW="Revisar el reporte adjunto para más detalles."; fi
 
           APPROVAL_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/approvals/production"
