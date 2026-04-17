@@ -13,8 +13,8 @@ module "compute" {
 
   servidores = {
     "web-1" = {
-      instance_type = "t2.micro"
-      subnet_id = "public"
+      type = "t2.micro"
+      subnet = "public"
       role  = "web"
       nginx = true
     }
