@@ -3,7 +3,7 @@ terraform {
 
   backend "s3" {
     bucket         = "poccjg-s3-tf-state"
-    key            = "proyectos/web-server/dev/terraform.tfstate"
+    key            = "proyectos/web-server/terraform.tfstate"
     region         = "us-east-1"
     dynamodb_table = "terraform-lock" # Evita que dos personas apliquen cambios a la vez
     encrypt        = true
