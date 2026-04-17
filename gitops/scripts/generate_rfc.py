@@ -1,90 +1,132 @@
-import requests
 import os
+import re
+import logging
+import torch
+from transformers import pipeline
 
-def generate_rfc():
-    # Asegúrate de usar la ruta correcta donde Terraform guarda el txt
-    tf_file = "gitops/terraform/environments/dev/tf.txt" 
-    output_file = "RFC.md"
+# Configuración de Logging
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
-    # 1. Leer y validar el archivo de Terraform
-    if not os.path.exists(tf_file):
-        print(f"Archivo {tf_file} no encontrado.")
-        return
+# Rutas y Configuración
+TF_PLAN_PATH = "gitops/terraform/environments/dev/tf.txt"
+OUTPUT_FILE = "RFC.md"
+MODEL_ID = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 
-    with open(tf_file, "r") as f:
-        tf_content = f.read()
+def parse_terraform_summary(content):
+    """Extrae el resumen del plan de Terraform."""
+    summary_pattern = r"Plan: (\d+) to add, (\d+) to change, (\d+) to destroy"
+    match = re.search(summary_pattern, content)
+    if match:
+        add, change, destroy = match.groups()
+        return {
+            "total": int(add) + int(change) + int(destroy),
+            "detail": f"{add} adiciones, {change} cambios, {destroy} eliminaciones"
+        }
+    cambios = [l for l in content.split('\n') if "resource" in l and any(c in l for c in ["+", "-", "~"])]
+    return {"total": len(cambios), "detail": f"{len(cambios)} recursos modificados"}
 
-    # 2. Lógica de "Cortocircuito": ¿Hay cambios reales?
-    # Buscamos indicadores de cambios positivos (+), eliminaciones (-) o modificaciones (~)
-    cambios_reales = [line for line in tf_content.split('\n') if "resource" in line and ("+" in line or "-" in line or "~" in line)]
-    
-    # 3. Escenario A: NO HAY CAMBIOS
-    if not cambios_reales or "No changes" in tf_content:
-        print("Infraestructura sincronizada. Generando Reporte de Estado.")
-        result = """# 📑 REPORTE DE ESTADO: INFRAESTRUCTURA SINCRONIZADA
-
-## 📋 1. RESUMEN EJECUTIVO
-Se ha realizado una validación de estado mediante Terraform. La infraestructura actual en la nube coincide exactamente con la configuración definida en el repositorio. No se han detectado desviaciones.
-
-## 🛠 2. DETALLE DE VERIFICACIÓN
-| Componente | Estado | Observación |
-| :--- | :--- | :--- |
-| **Recursos Cloud** | ✅ Sincronizado | Sin cambios pendientes de aplicar. |
-| **Configuración** | ✅ Validado | La plataforma se mantiene estable. |
-
-## 🛡 3. CONCLUSIÓN
-No se requiere intervención ni aprobación de cambios en este ciclo. El sistema se encuentra en estado óptimo."""
-        
-    # 4. Escenario B: HAY CAMBIOS (Llamamos a TinyLlama)
-    else:
-        print(f"Se detectaron {len(cambios_reales)} cambios. Generando RFC con IA...")
-        tf_data = f"Modificación/Creación de {len(cambios_reales)} recursos de infraestructura."
-        ansible_data = "Automatización de servicios y hardening de seguridad."
+def generate_rfc_local(tf_data, ansible_data):
+    """Genera el RFC usando TinyLlama localmente sin Ollama."""
+    logging.info("Cargando TinyLlama en memoria para generación local...")
+    try:
+        # Inicializar el pipeline de texto
+        pipe = pipeline(
+            "text-generation", 
+            model=MODEL_ID, 
+            torch_dtype=torch.bfloat16, 
+            device_map="auto"
+        )
 
         prompt = f"""<|system|>
-Eres un Director de Infraestructura. Escribe un RFC formal sin usar código técnico.
+Eres un Director de Infraestructura Senior. Redacta una Solicitud de Cambio (RFC) formal para un comité CAB.
+Enfócate en valor de negocio, riesgo y continuidad. No uses bloques de código.
 <|user|>
 DATOS:
-Terraform: {tf_data}
-Ansible: {ansible_data}
+- Terraform: {tf_data}
+- Ansible: {ansible_data}
 
-Escribe el RFC exactamente con este formato:
-# 📑 SOLICITUD DE CAMBIO (RFC): ACTUALIZACIÓN DE SISTEMAS
-
-## 📋 1. RESUMEN EJECUTIVO
-Despliegue programado para optimizar la capacidad operativa y seguridad del entorno.
-
-## 🛠 2. DETALLE DE IMPLEMENTACIÓN
-| Capa | Acción Realizada | Beneficio de Negocio |
-| :--- | :--- | :--- |
-| Infraestructura | {tf_data} | Escalabilidad y Continuidad |
-| Configuración | {ansible_data} | Estándar de Seguridad |
-
-## 🛡 3. ANÁLISIS DE RIESGO
-- **Nivel:** Bajo.
-- **Validación:** Validado en entorno de pruebas CI/CD.
-
-## 🔄 4. PLAN DE RETORNO
-Reversión inmediata vía GitOps.
+FORMATO REQUERIDO:
+# 📑 RFC: ACTUALIZACIÓN DE INFRAESTRUCTURA Y SEGURIDAD
+## 1. RESUMEN DEL CAMBIO
+## 2. JUSTIFICACIÓN DE NEGOCIO
+## 3. DETALLE DE IMPLEMENTACIÓN (Capa | Acción | Impacto)
+## 4. ANÁLISIS DE RIESGO
+## 5. PLAN DE RETORNO (ROLLBACK)
 <|assistant|>"""
 
-        payload = {
-            "model": "tinyllama",
-            "prompt": prompt,
-            "stream": False,
-            "options": {"temperature": 0.1, "num_predict": 500}
-        }
+        outputs = pipe(
+            prompt, 
+            max_new_tokens=600, 
+            do_sample=True, 
+            temperature=0.2, 
+            top_k=50, 
+            top_p=0.95,
+            repetition_penalty=1.2
+        )
+        
+        # Extraer solo la respuesta de la IA
+        full_text = outputs[0]["generated_text"]
+        result = full_text.split("<|assistant|>")[-1].strip()
+        return result
 
-        try:
-            response = requests.post("http://localhost:11434/api/generate", json=payload, timeout=60)
-            result = response.json().get("response", "").strip()
-        except:
-            result = "# 📑 RFC (Error de Generación)\nInfraestructura con cambios pendientes. Revisar logs manuales."
+    except Exception as e:
+        logging.error(f"Error en la generación local: {e}")
+        return None
 
-    # 5. Guardar el archivo final
-    with open(output_file, "w", encoding="utf-8") as f:
+def get_static_template(tf_data, ansible_data):
+    """RFC Profesional de respaldo (Fallback)."""
+    return f"""# 📑 RFC: ACTUALIZACIÓN DE INFRAESTRUCTURA (REPORTE ESTÁNDAR)
+
+## 1. RESUMEN DEL CAMBIO
+Actualización programada de componentes de infraestructura cloud y perfiles de seguridad de sistema.
+
+## 2. JUSTIFICACIÓN DE NEGOCIO
+Garantizar la paridad entre el código del repositorio y el entorno de producción, mejorando la postura de seguridad.
+
+## 3. DETALLE DE IMPLEMENTACIÓN
+| Capa | Acción Realizada | Impacto |
+| :--- | :--- | :--- |
+| Cloud | {tf_data} | Continuidad de Servicio |
+| OS | {ansible_data} | Cumplimiento de Hardening |
+
+## 4. ANÁLISIS DE RIESGO
+- **Nivel:** Bajo (Cambios validados en pipeline CI/CD).
+- **Control:** Verificación de integridad post-despliegue.
+
+## 5. PLAN DE RETORNO (ROLLBACK)
+Reversión automática mediante GitOps al commit anterior en caso de degradación de servicio.
+
+---
+*Generado mediante plantilla de contingencia.*"""
+
+def generate_rfc():
+    if not os.path.exists(TF_PLAN_PATH):
+        logging.error(f"No se encontró el archivo: {TF_PLAN_PATH}")
+        return
+
+    with open(TF_PLAN_PATH, "r", encoding="utf-8") as f:
+        tf_content = f.read()
+
+    summary = parse_terraform_summary(tf_content)
+    
+    if summary["total"] == 0 or "No changes" in tf_content:
+        logging.info("Sin cambios. Generando reporte de cumplimiento.")
+        result = "# 📑 REPORTE DE ESTADO: INFRAESTRUCTURA SINCRONIZADA\n\nNo se detectaron desviaciones. El entorno cumple con la política definida."
+    else:
+        logging.info(f"Procesando {summary['total']} cambios...")
+        tf_data = summary["detail"]
+        ansible_data = "Configuración de servicios y hardening de seguridad"
+
+        # Generación local con TinyLlama
+        result = generate_rfc_local(tf_data, ansible_data)
+        
+        # Fallback si falla la carga del modelo
+        if not result:
+            result = get_static_template(tf_data, ansible_data)
+
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write(result)
-    print(f"✅ Documento {output_file} generado.")
+    logging.info(f"✅ RFC profesional generado en {OUTPUT_FILE}")
 
 if __name__ == "__main__":
     generate_rfc()
