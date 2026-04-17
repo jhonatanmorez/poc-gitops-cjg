@@ -21,7 +21,7 @@ module "compute" {
   }
 
   ami_id            = "ami-0c02fb55956c7d316"
-  key_name          = "mi-key"
+  key_name          = "ec2keypair"
   public_subnet_id  = module.network.public_subnet_id
   private_subnet_id = module.network.private_subnet_id
 
