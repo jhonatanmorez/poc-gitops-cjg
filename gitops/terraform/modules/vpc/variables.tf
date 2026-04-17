@@ -12,3 +12,7 @@ variable "private_cidr" {
   description = "CIDR block for the private subnet"
   type        = string
 }
+variable "environment" {
+  description = "Entorno de despliegue (dev, staging, prod)"
+  type        = string
+}

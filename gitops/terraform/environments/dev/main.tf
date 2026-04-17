@@ -4,6 +4,8 @@ module "network" {
   vpc_cidr     = "10.0.0.0/16"
   public_cidr  = "10.0.1.0/24"
   private_cidr = "10.0.2.0/24"
+
+  environment = "dev"
 }
 
 module "compute" {
@@ -11,9 +13,10 @@ module "compute" {
 
   servidores = {
     "web-1" = {
-      type   = "t2.micro"
-      subnet = "public"
-      nginx  = true
+      instance_type = "t2.micro"
+      subnet_id = "public"
+      role  = "web"
+      nginx = true
     }
   }
 
