@@ -3,7 +3,7 @@ resource "aws_instance" "this" {
   ami = var.ami_id
   instance_type = each.value.type
   key_name = var.key_name
-  subnet_id = each.value.role == "public" ? var.public_subnet_id : var.private_subnet_id
+  subnet_id = each.value.subnet == "public" ? var.public_subnet_id : var.private_subnet_id
 
   tags = {
     Name = "${var.environment}-${each.key}"
