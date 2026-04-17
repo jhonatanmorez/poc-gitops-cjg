@@ -8,6 +8,15 @@ module "network" {
   environment = "dev"
 }
 
+module "security" {
+  source = "../../modules/sg"
+
+  vpc_id      = module.network.vpc_id
+  environment = "dev"
+  owner       = "cjg"
+  sg_name     = "web-sg"
+}
+
 module "compute" {
   source = "../../modules/ec2"
 
@@ -22,7 +31,7 @@ module "compute" {
 
   ami_id            = "ami-0c02fb55956c7d316"
   key_name          = "ec2keypair"
-  security_group_id = "sg-0259ad317a15a31c3"
+  security_group_id = module.security.security_group_id
   public_subnet_id  = module.network.public_subnet_id
   private_subnet_id = module.network.private_subnet_id
 
