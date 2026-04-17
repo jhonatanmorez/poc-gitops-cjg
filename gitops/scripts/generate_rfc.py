@@ -3,7 +3,7 @@ import os
 
 def generate_rfc():
     # Asegúrate de usar la ruta correcta donde Terraform guarda el txt
-    tf_file = "gitops/terraform/tf.txt" 
+    tf_file = "gitops/terraform/environments/dev/tf.txt" 
     output_file = "RFC.md"
 
     # 1. Leer y validar el archivo de Terraform
