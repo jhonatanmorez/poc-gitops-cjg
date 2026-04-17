@@ -27,23 +27,23 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::005104643423:role/GitHubActionsRole
           aws-region: us-east-1
-          output-credentials: true
+          #output-credentials: true
 
       - name: Terraform Plan
         run: |
           terraform init -reconfigure
           terraform plan -out=tfplan
           terraform show -no-color tfplan > tf.txt
-        working-directory: gitops/terraform
-        env:
-          AWS_ACCESS_KEY_ID: ${{ steps.aws-creds.outputs.aws-access-key-id }}
-          AWS_SECRET_ACCESS_KEY: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
-          AWS_SESSION_TOKEN: ${{ steps.aws-creds.outputs.aws-session-token }}
-          AWS_REGION: us-east-1
+        working-directory: gitops/terraform/environments/dev
+        #env:
+        #  AWS_ACCESS_KEY_ID: ${{ steps.aws-creds.outputs.aws-access-key-id }}
+        #  AWS_SECRET_ACCESS_KEY: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
+        #  AWS_SESSION_TOKEN: ${{ steps.aws-creds.outputs.aws-session-token }}
+        #  AWS_REGION: us-east-1
 
       - name: IA Generate RFC
         run: |
-          cp gitops/terraform/tf.txt .
+          cp gitops/terraform/environments/dev/tf.txt .
           python3 gitops/scripts/generate_rfc.py
 
       - name: Convert RFC to Word
@@ -148,12 +148,12 @@ jobs:
         run: |
           terraform init -reconfigure
           terraform apply -auto-approve
-        working-directory: gitops/terraform
-        env:
-          AWS_ACCESS_KEY_ID: ${{ steps.aws-creds.outputs.aws-access-key-id }}
-          AWS_SECRET_ACCESS_KEY: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
-          AWS_SESSION_TOKEN: ${{ steps.aws-creds.outputs.aws-session-token }}
-          AWS_REGION: us-east-1
+        working-directory: gitops/terraform/environments/dev
+        #env:
+        #  AWS_ACCESS_KEY_ID: ${{ steps.aws-creds.outputs.aws-access-key-id }}
+        #  AWS_SECRET_ACCESS_KEY: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
+        #  AWS_SESSION_TOKEN: ${{ steps.aws-creds.outputs.aws-session-token }}
+        #  AWS_REGION: us-east-1
 
       - name: Instalar Ansible AWS Collection
         run: | 
@@ -171,7 +171,7 @@ jobs:
             -e "nginx=true"
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
-          AWS_ACCESS_KEY_ID: ${{ steps.aws-creds.outputs.aws-access-key-id }}
-          AWS_SECRET_ACCESS_KEY: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
-          AWS_SESSION_TOKEN: ${{ steps.aws-creds.outputs.aws-session-token }}
-          AWS_REGION: us-east-1
+          #AWS_ACCESS_KEY_ID: ${{ steps.aws-creds.outputs.aws-access-key-id }}
+          #AWS_SECRET_ACCESS_KEY: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
+          #AWS_SESSION_TOKEN: ${{ steps.aws-creds.outputs.aws-session-token }}
+          #AWS_REGION: us-east-1
