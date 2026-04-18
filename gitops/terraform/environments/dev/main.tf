@@ -29,7 +29,7 @@ module "compute" {
     }
   }
 
-  ami_id            = "ami-0c02fb55956c7d316"
+  ami_id            = "ami-04680790a315cd58d"
   key_name          = "ec2keypair"
   security_group_id = module.security.security_group_id
   public_subnet_id  = module.network.public_subnet_id
