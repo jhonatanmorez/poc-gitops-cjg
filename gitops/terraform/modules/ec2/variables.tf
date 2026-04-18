@@ -16,6 +16,7 @@ variable "ami_id" {
 variable "key_name" {
   description = "Nombre del par de claves para acceder a las instancias"
   type        = string
+  default     = "ec2keypair"
 }   
 
 variable "environment" {
